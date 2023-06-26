@@ -1,14 +1,14 @@
 use nom::{
     branch::alt,
     bytes::complete::{tag, tag_no_case},
-    character::complete::{one_of, space1},
+    character::complete::one_of,
     error::{context, VerboseError},
     multi::many_m_n,
     sequence::tuple,
-    Err as NomErr, IResult,
+    Err as NomErr,
 };
 
-type Result<T, U> = IResult<T, U, VerboseError<T>>;
+pub type IResult<I, O> = nom::IResult<I, O, VerboseError<I>>;
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum Term {
@@ -18,7 +18,14 @@ pub enum Term {
     TmSucc(Box<Term>),
     TmPred(Box<Term>),
     TmIsZero(Box<Term>),
+    // condition term, then term, else term
     TmIf(Box<Term>, Box<Term>, Box<Term>),
+}
+
+impl Term {
+    pub fn is_zero(&self) -> bool {
+        self == &Term::TmZero
+    }
 }
 
 impl From<&str> for Term {
@@ -27,12 +34,12 @@ impl From<&str> for Term {
             "true" => Term::TmTrue,
             "false" => Term::TmFalse,
             "0" => Term::TmZero,
-            _ => unimplemented!("no other single word term supported"),
+            _ => unimplemented!("no other value term supported"),
         }
     }
 }
 
-fn parse_succ(input: &str) -> Result<&str, Term> {
+fn parse_succ(input: &str) -> IResult<&str, Term> {
     context(
         "succ",
         tuple((tag_no_case("succ"), tag("("), parse_term, tag(")"))),
@@ -40,7 +47,7 @@ fn parse_succ(input: &str) -> Result<&str, Term> {
     .map(|(next_input, (_, _, term, _))| (next_input, Term::TmSucc(Box::new(term))))
 }
 
-fn parse_pred(input: &str) -> Result<&str, Term> {
+fn parse_pred(input: &str) -> IResult<&str, Term> {
     context(
         "pred",
         tuple((tag_no_case("pred"), tag("("), parse_term, tag(")"))),
@@ -48,7 +55,7 @@ fn parse_pred(input: &str) -> Result<&str, Term> {
     .map(|(next_input, (_, _, term, _))| (next_input, Term::TmPred(Box::new(term))))
 }
 
-fn parse_iszero(input: &str) -> Result<&str, Term> {
+fn parse_iszero(input: &str) -> IResult<&str, Term> {
     context(
         "iszero",
         tuple((tag_no_case("iszero"), tag("("), parse_term, tag(")"))),
@@ -56,47 +63,40 @@ fn parse_iszero(input: &str) -> Result<&str, Term> {
     .map(|(next_input, (_, _, term, _))| (next_input, Term::TmIsZero(Box::new(term))))
 }
 
-fn parse_if(input: &str) -> Result<&str, Term> {
+fn parse_if(input: &str) -> IResult<&str, Term> {
     context(
         "if",
         tuple((
-            tag_no_case("if"),
-            space1,
+            tag_no_case("if "),
             parse_term,
-            space1,
-            tag("then"),
-            space1,
+            tag(" then "),
             parse_term,
-            space1,
-            tag("else"),
-            space1,
+            tag(" else "),
             parse_term,
         )),
     )(input)
-    .map(
-        |(next_input, (_, _, cond_term, _, _, _, then_term, _, _, _, else_term))| {
-            (
-                next_input,
-                Term::TmIf(
-                    Box::new(cond_term),
-                    Box::new(then_term),
-                    Box::new(else_term),
-                ),
-            )
-        },
-    )
+    .map(|(next_input, (_, cond_term, _, then_term, _, else_term))| {
+        (
+            next_input,
+            Term::TmIf(
+                Box::new(cond_term),
+                Box::new(then_term),
+                Box::new(else_term),
+            ),
+        )
+    })
 }
 
-fn parse_word_term(input: &str) -> Result<&str, Term> {
+fn parse_value(input: &str) -> IResult<&str, Term> {
     context(
-        "word term",
+        "parse_value",
         alt((tag_no_case("true"), tag_no_case("false"), tag_no_case("0"))),
     )(input)
     .map(|(next_input, res)| (next_input, res.into()))
 }
 
-fn parse_numeric(input: &str) -> Result<&str, Term> {
-    fn n_to_m_digits<'a>(n: usize, m: usize) -> impl FnMut(&'a str) -> Result<&str, String> {
+fn parse_numeric(input: &str) -> IResult<&str, Term> {
+    fn n_to_m_digits<'a>(n: usize, m: usize) -> impl FnMut(&'a str) -> IResult<&str, String> {
         move |input| {
             many_m_n(n, m, one_of("0123456789"))(input)
                 .map(|(next_input, result)| (next_input, result.into_iter().collect()))
@@ -118,11 +118,11 @@ fn parse_numeric(input: &str) -> Result<&str, Term> {
     })
 }
 
-pub fn parse_term(input: &str) -> Result<&str, Term> {
+fn parse_term(input: &str) -> IResult<&str, Term> {
     context(
         "term",
         alt((
-            parse_word_term,
+            parse_value,
             parse_succ,
             parse_pred,
             parse_iszero,
@@ -131,6 +131,11 @@ pub fn parse_term(input: &str) -> Result<&str, Term> {
         )),
     )(input)
     .map(|(next_input, res)| (next_input, res))
+}
+
+pub fn parse(input: &str) -> IResult<&str, Term> {
+    context("parse", tuple((parse_term, tag(";"))))(input)
+        .map(|(next_input, (term, _))| (next_input, term))
 }
 
 #[cfg(test)]
