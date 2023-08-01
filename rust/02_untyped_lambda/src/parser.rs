@@ -1,7 +1,7 @@
 use nom::{
     branch::alt,
     bytes::complete::{tag, tag_no_case},
-    character::complete::{alpha0, alpha1},
+    character::complete::{alpha0, alpha1, multispace0},
     error::{context, VerboseError},
     multi::many1,
     sequence::tuple,
@@ -25,8 +25,8 @@ fn parse_paren_term(input: &str) -> IResult<&str, Term> {
 
 fn parse_variable(input: &str) -> IResult<&str, Term> {
     println!("parse_variable {:?}", input);
-    context("parse_variable", alpha1)(input)
-        .map(|(next_input, res)| (next_input, Term::TmVar(res.to_string())))
+    context("parse_variable", tuple((multispace0, alpha1)))(input)
+        .map(|(next_input, (_, res))| (next_input, Term::TmVar(res.to_string())))
 }
 
 fn parse_atom(input: &str) -> IResult<&str, Term> {
@@ -91,7 +91,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            parse("(lambda x.(lambda y.y))z;"),
+            parse("(lambda x.(lambda y.y)) z;"),
             Ok((
                 "",
                 Term::TmApp(
