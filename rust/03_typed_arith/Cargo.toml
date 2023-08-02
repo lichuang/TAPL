@@ -1,0 +1,8 @@
+[package]
+name = "typed_arith"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+untyped_arith = { path = "../01_untyped_arith" }
+nom = "7.1.1"
