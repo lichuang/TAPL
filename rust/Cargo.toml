@@ -1,2 +1,2 @@
 [workspace]
-members = ["01_arith"]
+members = ["01_untyped_arith", "02_untyped_lambda", "03_typed_arith"]
