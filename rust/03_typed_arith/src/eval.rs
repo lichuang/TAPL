@@ -95,7 +95,14 @@ fn term_type(term: &Term) -> Result<Type> {
     Ok(term_type)
 }
 
+fn check_term_type(term: &Term) -> Result<()> {
+    let _ = term_type(term)?;
+    Ok(())
+}
+
 pub fn eval_term(term: &Term) -> Result<Value> {
+    check_term_type(term)?;
+
     let value = match term {
         Term::TmTrue => Value::Boolean(true),
         Term::TmFalse => Value::Boolean(false),
@@ -104,9 +111,7 @@ pub fn eval_term(term: &Term) -> Result<Value> {
             let value = if let Value::Numeric(number) = eval_term(term.as_ref())? {
                 Value::Numeric(number + 1)
             } else {
-                return Err(Error {
-                    msg: format!("term {:?} MUST be Numeric", term),
-                });
+                unreachable!("has check_term_type before");
             };
             value
         }
@@ -114,22 +119,12 @@ pub fn eval_term(term: &Term) -> Result<Value> {
             let value = if let Value::Numeric(number) = eval_term(term.as_ref())? {
                 Value::Numeric(number - 1)
             } else {
-                return Err(Error {
-                    msg: format!("term {:?} MUST be Numeric", term),
-                });
+                unreachable!("has check_term_type before");
             };
             value
         }
-        Term::TmIsZero(term) => {
-            if term_type(term)? != Type::Numeric {
-                return Err(Error {
-                    msg: format!("term {:?} MUST be Numeric", term),
-                });
-            }
-            Value::Boolean(term.is_zero())
-        }
+        Term::TmIsZero(term) => Value::Boolean(term.is_zero()),
         Term::TmIf(cond_term, then_term, else_term) => {
-            let _ = term_type(term)?;
             if let Value::Boolean(cond) = eval_term(cond_term.as_ref())? {
                 if cond {
                     eval_term(&then_term.as_ref())?
@@ -137,9 +132,7 @@ pub fn eval_term(term: &Term) -> Result<Value> {
                     eval_term(&else_term.as_ref())?
                 }
             } else {
-                return Err(Error {
-                    msg: format!("term {:?} MUST be Boolean", cond_term),
-                });
+                unreachable!("has check_term_type before");
             }
         }
     };
