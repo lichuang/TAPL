@@ -1,12 +1,13 @@
 use nom::{
     branch::alt,
     bytes::complete::{tag, tag_no_case},
-    character::complete::{alpha0, alpha1, multispace0},
+    character::complete::{alpha0, alpha1, multispace0, one_of},
     error::{context, VerboseError},
     multi::many1,
     sequence::tuple,
 };
 
+use misc::ALPHABET;
 pub type IResult<I, O> = nom::IResult<I, O, VerboseError<I>>;
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
@@ -25,7 +26,7 @@ fn parse_paren_term(input: &str) -> IResult<&str, Term> {
 
 fn parse_variable(input: &str) -> IResult<&str, Term> {
     println!("parse_variable {:?}", input);
-    context("parse_variable", tuple((multispace0, alpha1)))(input)
+    context("parse_ident", tuple((multispace0, one_of(ALPHABET))))(input)
         .map(|(next_input, (_, res))| (next_input, Term::TmVar(res.to_string())))
 }
 
@@ -36,10 +37,15 @@ fn parse_atom(input: &str) -> IResult<&str, Term> {
 }
 
 fn parse_abstraction(input: &str) -> IResult<&str, Term> {
-    //println!("parse_abstraction: {:?}", input);
+    println!("parse_abstraction: {:?}", input);
     context(
         "parse_abstraction",
-        tuple((tag_no_case("lambda "), alpha0, tag("."), parse_term)),
+        tuple((
+            tag_no_case("lambda "),
+            one_of(ALPHABET),
+            tag("."),
+            parse_term,
+        )),
     )(input)
     .map(|(next_input, (_, param, _, body))| {
         /*
