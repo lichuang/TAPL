@@ -9,6 +9,7 @@ use nom::error::VerboseError;
 pub enum EvalError {
     VerboseError(String),
     TypeError(String),
+    NoRuleApplies,
 }
 
 impl From<nom::Err<VerboseError<&str>>> for EvalError {
@@ -23,12 +24,26 @@ impl From<TypeError> for EvalError {
     }
 }
 
-/*
-pub fn eval(ctx: &mut Context, input: &str) -> Result<(Term, Type), EvalError> {
-    let (i, term) = parse(input)?;
-    assert!(i.is_empty());
-    let typ = type_of(ctx, &term)?;
-
-    Ok((term, typ))
+fn eval1(ctx: &mut Context, term: &Term) -> Result<Term, EvalError> {
+    match term {
+        Term::TmIf(if_term, then_term, else_term) => match *if_term.as_ref() {
+            Term::TmTrue => Ok(then_term.as_ref().clone()),
+            Term::TmFalse => Ok(else_term.as_ref().clone()),
+            _ => {
+                let if_term = eval(ctx, if_term.as_ref())?;
+                Ok(Term::TmIf(
+                    Box::new(if_term),
+                    then_term.clone(),
+                    else_term.clone(),
+                ))
+            }
+        },
+        Term::TmApp(left, right) => {}
+        _ => Err(EvalError::NoRuleApplies),
+    }
 }
-*/
+
+pub fn eval(ctx: &mut Context, term: &Term) -> Result<Term, EvalError> {
+    let term = eval1(ctx, term)?;
+    Ok(term)
+}
