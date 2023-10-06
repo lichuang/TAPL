@@ -38,7 +38,7 @@ fn eval1(ctx: &mut Context, term: &Term) -> Result<Term, EvalError> {
                 ))
             }
         },
-        Term::TmApp(left, right) => {}
+        Term::TmApp(left, right) => if left.as_ref() == &Term::TmAbs(name, typ, body) {},
         _ => Err(EvalError::NoRuleApplies),
     }
 }
